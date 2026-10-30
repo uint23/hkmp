@@ -23,17 +23,20 @@ typedef enum {
 } ErrorCode;
 
 static void arguments(int argc, char* argv[]);
+static void cleanup_audio(void);
 static void data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count);
 static void die(ErrorCode ec, const char* fmt, ...);
 static void run(void);
 static void setup_decoder(void);
 
-static ma_decoder decoder = { 0 };
-static ma_device device = { 0 };
-static ma_device_config device_config = { 0 };
-static ma_result result = 0;
+static struct {
+	ma_decoder       decoder;
+	ma_device        device;
+	ma_result        result;
+	ma_device_config device_config;
 
-static const char* audio_file = NULL;
+	char* file;
+} audio = { 0 };
 
 static void
 arguments(int argc, char* argv[])
@@ -46,19 +49,23 @@ arguments(int argc, char* argv[])
 	else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
 		die(EC_OK, USAGE);
 	else {
-		audio_file = argv[1];
+		audio.file = argv[1];
 		return;
 	}
 
+static void
+cleanup_audio(void)
+{
+	ma_decoder_uninit(&audio.decoder);
+	ma_device_uninit(&audio.device);
 }
 
 static void
 data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count)
 {
 	ma_decoder* _decoder = (ma_decoder*)device->pUserData;
-	if (_decoder == NULL) {
+	if (_decoder == NULL)
 		return;
-	}
 
 	ma_decoder_read_pcm_frames(_decoder, output, frame_count, NULL);
 
@@ -68,6 +75,8 @@ data_callback(ma_device* device, void* output, const void* input, ma_uint32 fram
 static void
 die(ErrorCode ec, const char* fmt, ...)
 {
+	cleanup_audio();
+
 	va_list ap;
 	va_start(ap, fmt);
 
@@ -77,7 +86,6 @@ die(ErrorCode ec, const char* fmt, ...)
 	fputc('\n', stderr);
 	fflush(stderr);
 
-	fprintf(stderr, "Died with ErrorCode [%d]\n", ec);
 	exit(ec);
 }
 
@@ -88,28 +96,29 @@ run(void)
 		;
 }
 
-static void setup_decoder(void)
+static void
+setup_decoder(void)
 {
-	result = ma_decoder_init_file(audio_file, NULL, &decoder);
-	if (result != MA_SUCCESS)
-		die(EC_DECODER_LOAD_FILE, "Could not load file %s", audio_file);
+	audio.result = ma_decoder_init_file(audio.file, NULL, &audio.decoder);
+	if (audio.result != MA_SUCCESS)
+		die(EC_DECODER_LOAD_FILE, "Could not load file %s", audio.file);
 
-	device_config = ma_device_config_init(ma_device_type_playback);
-	device_config.playback.format   = decoder.outputFormat;
-	device_config.playback.channels = decoder.outputChannels;
-	device_config.sampleRate        = decoder.outputSampleRate;
-	device_config.dataCallback      = data_callback;
-	device_config.pUserData         = &decoder;
+	audio.device_config = ma_device_config_init(ma_device_type_playback);
+	audio.device_config.playback.format   = audio.decoder.outputFormat;
+	audio.device_config.playback.channels = audio.decoder.outputChannels;
+	audio.device_config.sampleRate        = audio.decoder.outputSampleRate;
+	audio.device_config.dataCallback      = data_callback;
+	audio.device_config.pUserData         = &audio.decoder;
 
-	result = ma_device_init(NULL, &device_config, &device);
-	if (result != MA_SUCCESS) {
-		ma_decoder_uninit(&decoder);
+	audio.result = ma_device_init(NULL, &audio.device_config, &audio.device);
+	if (audio.result != MA_SUCCESS) {
+		ma_decoder_uninit(&audio.decoder);
 		die(EC_DEVICE_INIT, "Failed to open playback device");
 	}
 
-	if (ma_device_start(&device) != MA_SUCCESS) {
-		ma_device_uninit(&device);
-		ma_decoder_uninit(&decoder);
+	if (ma_device_start(&audio.device) != MA_SUCCESS) {
+		ma_device_uninit(&audio.device);
+		ma_decoder_uninit(&audio.decoder);
 		die(EC_DEVICE_START, "Failed to start playback device");
 	}
 }
