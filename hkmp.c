@@ -25,8 +25,8 @@ typedef enum {
 static void arguments(int argc, char* argv[]);
 static void cleanup_audio(void);
 static void data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count);
-static void die(ErrorCode ec, const char* fmt, ...);
 static void run(void);
+static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
 static void setup_decoder(void);
 
 static struct {
@@ -38,20 +38,46 @@ static struct {
 	char* file;
 } audio = { 0 };
 
+static inline void die(ErrorCode ec, const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	say(stderr, true, ec, fmt, ap);
+	va_end(ap);
+}
+
+static inline void warn(ErrorCode ec, const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	say(stderr, false, ec, fmt, ap);
+	va_end(ap);
+}
+
+static inline void info(const char* fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	say(stdout, false, EC_OK, fmt, ap);
+	va_end(ap);
+}
+
 static void
 arguments(int argc, char* argv[])
 {
 	if (argc < 2)
 		return;
 
-	if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version"))
-		die(EC_OK, "v" VERSION);
-	else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
-		die(EC_OK, USAGE);
+	if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
+		info("v" VERSION);
+		exit(EC_OK);
+	}
+	else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+		info(USAGE);
+		exit(EC_OK);
+	}
 	else {
 		audio.file = argv[1];
 		return;
 	}
+}
 
 static void
 cleanup_audio(void)
@@ -73,23 +99,6 @@ data_callback(ma_device* device, void* output, const void* input, ma_uint32 fram
 }
 
 static void
-die(ErrorCode ec, const char* fmt, ...)
-{
-	cleanup_audio();
-
-	va_list ap;
-	va_start(ap, fmt);
-
-	fprintf(stderr, "<%d> ", ec);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	fputc('\n', stderr);
-	fflush(stderr);
-
-	exit(ec);
-}
-
-static void
 run(void)
 {
 	for (;;)
@@ -97,11 +106,29 @@ run(void)
 }
 
 static void
+say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list ap)
+{
+	/* warnings ! */
+	if (stream == stderr && !stop)
+		fprintf(stream, "!");
+	if (stream == stderr)
+		fprintf(stream, "%d> ", ec);
+	vfprintf(stream, fmt, ap);
+	fputc('\n', stream);
+	fflush(stream);
+
+	if (stop) {
+		cleanup_audio();
+		exit(ec);
+	}
+}
+
+static void
 setup_decoder(void)
 {
 	audio.result = ma_decoder_init_file(audio.file, NULL, &audio.decoder);
 	if (audio.result != MA_SUCCESS)
-		die(EC_DECODER_LOAD_FILE, "Could not load file %s", audio.file);
+		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", audio.file);
 
 	audio.device_config = ma_device_config_init(ma_device_type_playback);
 	audio.device_config.playback.format   = audio.decoder.outputFormat;
@@ -121,6 +148,8 @@ setup_decoder(void)
 		ma_decoder_uninit(&audio.decoder);
 		die(EC_DEVICE_START, "Failed to start playback device");
 	}
+
+	info("Set up audio decoder");
 }
 
 int
