@@ -7,11 +7,13 @@
 #include "ulepipe.h"
 
 #ifndef VERSION
-#define VERSION "? " __DATE__
+#define VERSION "  ?  " __DATE__
 #endif
 #define USAGE \
-"%s Usage:\n" \
-"\t[-v || --version]: Get %s version\n", argv[0], argv[0] \
+"%s usage:\n" \
+"\t[-v || --version]: Get the program version\n" \
+"\t[-h || --help]:    Get this help menu\n" \
+"", argv[0]
 
 typedef enum {
 	EC_OK,
@@ -41,12 +43,13 @@ arguments(int argc, char* argv[])
 
 	if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version"))
 		die(EC_OK, "v" VERSION);
+	else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
+		die(EC_OK, USAGE);
 	else {
 		audio_file = argv[1];
 		return;
 	}
 
-	die(EC_OK, USAGE);
 }
 
 static void
@@ -68,6 +71,7 @@ die(ErrorCode ec, const char* fmt, ...)
 	va_list ap;
 	va_start(ap, fmt);
 
+	fprintf(stderr, "<%d> ", ec);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
