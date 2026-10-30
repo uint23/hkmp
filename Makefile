@@ -1,35 +1,50 @@
-.include "config.mk"
-
-CC = cc
+.POSIX:
 
 # Miniaudio can use more advanced vectorisation with later versions of C. If
-# your toolchain doesn't support the latest standards, you can use C99
+# your toolchain doesn't support the latest standards, you can use CSTD=C99
+CC = cc
 CSTD = c23
-
 CFLAGS = -std=${CSTD} -Wall -Wextra -O2
 CPPFLAGS =
 
-SRC = hkmp.c \
-      ulepipe.c \
-      miniaudio.c
-HDR = ulepipe.h \
-      miniaudio.h
+OBJ = build/hkmp.o \
+      build/ulepipe.o \
+      build/miniaudio.o
 OUT = hkmp
 
-CTL_SRC = hkmpctl.c \
-          ulepipe.c
-CTL_HDR = ulepipe.h
+CTL_OBJ = build/hkmpctl.o \
+          build/ulepipe.o
 CTL_OUT = hkmpctl
 
-all: ${OUT}
-${OUT}: ${SRC} ${HDR}
-	${CC} ${CFLAGS} ${LIBS} ${CPPFLAGS} ${SRC} -o ${OUT}
+include config.mk
 
-${CTL_OUT}: ${CTL_SRC} ${CTL_HDR}
-	${CC} ${CFLAGS} ${CPPFLAGS} ${CTL_SRC} -o ${CTL_OUT}
+all: ${OUT} ${CTL_OUT}
+
+${OUT}: ${OBJ}
+	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
+
+${CTL_OUT}: ${CTL_OBJ}
+	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${CTL_OBJ}
+
+build/hkmp.o: hkmp.c ulepipe.h miniaudio.h
+	mkdir -p build
+	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmp.c -o $@
+
+build/hkmpctl.o: hkmpctl.c ulepipe.h
+	mkdir -p build
+	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmpctl.c -o $@
+
+build/ulepipe.o: ulepipe.c ulepipe.h
+	mkdir -p build
+	${CC} ${CPPFLAGS} ${CFLAGS} -c ulepipe.c -o $@
+
+build/miniaudio.o: miniaudio.c miniaudio.h
+	mkdir -p build
+	${CC} ${CPPFLAGS} ${CFLAGS} -c miniaudio.c -o $@
 
 clean:
-	rm ${OUT} ${CTL_OUT}
+	rm -f ${OUT} ${CTL_OUT} ${OBJ}
+	rmdir build
 
 compile_flags:
 	printf '%s\n' ${CFLAGS} > compile_flags.txt
