@@ -3,4 +3,5 @@ hkmp
 *.swp
 *.swo
 compile_flags.txt
+config.mk
 

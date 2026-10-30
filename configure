@@ -1,0 +1,13 @@
+#!/bin/sh
+
+OS=`uname`
+
+if [ "$OS" = "Darwin" ]; then
+  echo "LIBS = -lpthread -lm -framework CoreAudio -framework AudioToolbox" > config.mk
+elif [ "$OS" = "Linux" ]; then
+  echo "LIBS = -ldl -lpthread -lm" > config.mk
+elif [ "$OS" = "NetBSD" ] || [ "$OS" = "OpenBSD" ] || [ "$OS" = "FreeBSD" ]; then
+  echo "LIBS = -lpthread -lm" > config.mk
+else
+  echo "Your platform is unsupported by Miniaudio :("
+fi
