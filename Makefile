@@ -18,7 +18,7 @@ CTL_OUT = hkmpctl
 
 include config.mk
 
-all: ${OUT} ${CTL_OUT}
+all: ${OUT} # ${CTL_OUT} XXX
 
 ${OUT}: ${OBJ}
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
