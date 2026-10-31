@@ -83,11 +83,15 @@ typedef struct {
 
 static void arguments(int argc, char* argv[]);
 static void cleanup(void);
+static void send_string(const char* s);
 static void run(void);
 static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
 static void setup(void);
 static void setup_engine(void);
 static void signal_handler(int sig);
+static void song_play(void);
+static void song_pause(void);
+static void song_toggle(void);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
 
@@ -149,6 +153,20 @@ cleanup(void)
 }
 
 static void
+send_string(const char* s)
+{
+	size_t len = strlen(s);
+	char err[] = "File path too long";
+
+	if (len > PATH_MAX) {
+		memcpy(conn_data.s, err, sizeof(err));
+		return;
+	}
+
+	memcpy(conn_data.s, s, len);
+}
+
+static void
 run(void)
 {
 	for (;;) {
@@ -167,39 +185,12 @@ run(void)
 			die(EC_OK, "Quit by controller request");
 			break;
 	
-		case CTL_PLAY:
-			ma_sound_start(&song.sound);
-			song.playing = true;
-			break;
+		case CTL_PLAY:   song_play(); break;
+		case CTL_PAUSE:  song_pause(); break;
+		case CTL_TOGGLE: song_toggle(); break;
 
-		case CTL_PAUSE:
-			ma_sound_stop(&song.sound);
-			song.playing = false;
-			break;
-
-		case CTL_TOGGLE:
-			song.playing ? ma_sound_stop(&song.sound) : ma_sound_start(&song.sound);
-			song.playing = !song.playing;
-			break;
-
-		case CTL_GET_FILE_NAME:;
-			size_t len_get_file_name = strlen(song.name);
-			char err_get_file_name[] = "File path too long";
-
-			if (len_get_file_name > PATH_MAX)
-				memcpy(conn_data.s, err_get_file_name, sizeof(err_get_file_name));
-			memcpy(conn_data.s, song.name, len_get_file_name);
-			break;
-
-		case CTL_GET_FILE_PATH:;
-			size_t len_get_file_path = strlen(song.path);
-			char err_get_file_path[] = "File path too long";
-
-			if (len_get_file_path > PATH_MAX)
-				memcpy(conn_data.s, err_get_file_path, sizeof(err_get_file_path));
-
-			memcpy(conn_data.s, song.path, len_get_file_path);
-			break;
+		case CTL_GET_FILE_NAME:  send_string(song.name); break;
+		case CTL_GET_FILE_PATH:; send_string(song.path); break;
 
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
@@ -238,9 +229,10 @@ setup(void)
 	setup_engine();
 	ma_sound_init_from_file(&engine, song.path, 0u, NULL, NULL, &song.sound);
 
-	ma_sound_start(&song.sound);
+	song_play();
+
+	/* TODO looping */
 	ma_sound_set_looping(&song.sound, true);
-	song.playing = true;
 	song.looping = true;
 
 	/* pipe */
@@ -283,6 +275,27 @@ signal_handler(int sig)
 	default:
 		break;
 	}
+}
+
+static void
+song_play(void)
+{
+	ma_sound_start(&song.sound);
+	song.playing = true;
+}
+
+static void
+song_pause(void)
+{
+	ma_sound_stop(&song.sound);
+	song.playing = false;
+}
+
+static void
+song_toggle(void)
+{
+	song.playing ? ma_sound_stop(&song.sound) : ma_sound_start(&song.sound);
+	song.playing = !song.playing;
 }
 
 int
