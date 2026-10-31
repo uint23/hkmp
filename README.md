@@ -1,6 +1,6 @@
 ![logo-small](docs/small.png)
 
-Hot Key Music Player is a daemon which relies entirely on other programs to
+Hotkey Music Player is a daemon which relies entirely on other programs to
 control its behavior
 
 Miniaudio isn't very "mini" but it works great and is widely supported on most
