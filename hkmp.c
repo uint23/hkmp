@@ -9,6 +9,10 @@
 #include "miniaudio.h"
 #include "ulepipe.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #ifndef VERSION
 #define VERSION "  ?  " __DATE__
 #endif
@@ -56,7 +60,7 @@ typedef struct {
 
 	union {
 		char c;
-		char str[256];
+		char str[PATH_MAX];
 
 		float  f;
 		double d;

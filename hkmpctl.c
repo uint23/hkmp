@@ -1,8 +1,13 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "ulepipe.h"
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
 
 #define USAGE \
 "%s usage:\n" \
@@ -37,7 +42,7 @@ typedef struct {
 
 	union {
 		char c;
-		char str[256];
+		char str[PATH_MAX];
 
 		float  f;
 		double d;
@@ -50,7 +55,7 @@ typedef struct {
 } HkmpDataLayout;
 
 int
-main(int argc, const char* argv[])
+main(int argc, char* argv[])
 {
 	if (argc < 2) {
 		printf(USAGE);
