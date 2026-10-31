@@ -26,11 +26,11 @@ ${OUT}: ${OBJ}
 ${CTL_OUT}: ${CTL_OBJ}
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${CTL_OBJ}
 
-build/hkmp.o: hkmp.c vendor/ulepipe.h vendor/miniaudio.h
+build/hkmp.o: hkmp.c hkmp.h vendor/ulepipe.h vendor/miniaudio.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmp.c -o $@
 
-build/hkmpctl.o: hkmpctl.c vendor/ulepipe.h
+build/hkmpctl.o: hkmpctl.c hkmp.h vendor/ulepipe.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmpctl.c -o $@
 

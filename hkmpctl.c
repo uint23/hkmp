@@ -1,163 +1,95 @@
-/*
-  TODO
-  Escape this macro hellscape
-*/
+#include "hkmp.h"
+#include "ulepipe.h"
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "ulepipe.h"
+struct Command {
+	const char* words[3];
+	int         argc;
+	Control     type;
+	const char* name;
+	int         print_reply;
+};
 
-#ifndef PATH_MAX
-#define PATH_MAX 1024
-#endif
+static const struct Command commands[] = {
+	{{"ping"},                1, CTL_PING,          "ping",          1},
+	{{"quit"},                1, CTL_QUIT,          "quit",          0},
+	{{"play"},                1, CTL_PLAY,          "play",          0},
+	{{"pause"},               1, CTL_PAUSE,         "pause",         0},
+	{{"toggle"},              1, CTL_TOGGLE,        "toggle",        0},
+	{{"loop", "song"},        2, CTL_LOOP_SONG,     "loop-song",     0},
+	{{"get", "file", "name"}, 3, CTL_GET_FILE_NAME, "get-file-name", 1},
+	{{"get", "file", "path"}, 3, CTL_GET_FILE_PATH, "get-file-path", 1},
+	{{"haxxor"},              1, 1337,              "haxxor",        0},
+};
 
-#define USAGE \
-"%s usage:\n" \
-"\n" \
-"ping:   Ping the daemon\n" \
-"help:   Get this helpful menu\n" \
-"quit:   Stop the daemon\n" \
-"play:   Play the current song\n" \
-"pause:  Pause the current song\n" \
-"toggle: Play/Pause the current song\n" \
-"\n" \
-"loop:\n" \
-"    song:     Toggle looping the current song\n" \
-"    playlist: Toggle looping the whole playlist\n" \
-"\n" \
-"get:\n" \
-"  file:\n" \
-"    name: Get the currently playing file name\n" \
-"    path: Get the currently playing file path\n" \
-"", argv[0]
+static int
+usage(const char *prog, int status)
+{
+	fprintf(status == EXIT_SUCCESS ? stdout : stderr,
+	        "%s usage:\n"
+	        "\n"
+	        "ping:   Ping the daemon\n"
+	        "help:   Get this helpful menu\n"
+	        "quit:   Stop the daemon\n"
+	        "play:   Play the current song\n"
+	        "pause:  Pause the current song\n"
+	        "toggle: Play/Pause the current song\n"
+	        "\n"
+	        "loop:\n"
+	        "    song:     Toggle looping the current song\n"
+	        "    playlist: Toggle looping the whole playlist\n"
+	        "\n"
+	        "get:\n"
+	        "  file:\n"
+	        "    name: Get the currently playing file name\n"
+	        "    path: Get the currently playing file path\n", prog);
+	return status;
+}
 
-#ifndef SOCKET_PATH
-#define SOCKET_PATH "/tmp/hkmp.communications.socket"
-#endif
+static int
+request(const struct Command *command)
+{
+	HkmpDataLayout data = {0};
 
-#define die_args() do { fprintf(stderr, USAGE); exit(EXIT_FAILURE); } while(0)
-#define cmp(a) if (level < argc && !strcmp(argv[level], a) && ++level)
-#define send(data) do { \
-if (level != argc) \
-	die_args(); \
-ulepipe_send(SOCKET_PATH, &data, sizeof(data)); \
-} while (0)
-
-typedef enum {
-	CTL_REPLY,
-
-	CTL_PING,
-	CTL_QUIT,
-
-	CTL_PAUSE,
-	CTL_PLAY,
-	CTL_TOGGLE,
-
-	CTL_LOOP_SONG,
-	CTL_LOOP_PLAYLIST,
-
-	CTL_GET_FILE_NAME,
-	CTL_GET_FILE_PATH,
-
-	/* TODO */
-} Control;
-
-typedef struct {
-	Control type;
-	char    name[64];
-
-	union {
-		char   s[PATH_MAX];
-		double d;
-		int    i;
-	};
-} HkmpDataLayout;
+	data.type = command->type;
+	snprintf(data.name, sizeof(data.name), "%s", command->name);
+	ssize_t n = ulepipe_send(SOCKET_PATH, &data, sizeof(data));
+	if (n < 0) {
+		perror("hkmpctl: request");
+		return EXIT_FAILURE;
+	}
+	if ((size_t)n != sizeof(data) || data.type != CTL_REPLY ||
+	    (command->print_reply && !memchr(data.s, '\0', sizeof(data.s)))) {
+		fputs("hkmpctl: invalid reply\n", stderr);
+		return EXIT_FAILURE;
+	}
+	if (command->print_reply &&
+	    (fputs(data.s, stdout) == EOF || fflush(stdout) == EOF)) {
+		perror("hkmpctl: stdout");
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
 
 int
 main(int argc, char* argv[])
 {
-	int level = 1;
+	if (argc == 1 || (argc == 2 && !strcmp(argv[1], "help")))
+		return usage(argv[0], EXIT_SUCCESS);
 
-	if (argc <= level) {
-		printf(USAGE);
-		return EXIT_SUCCESS;
+	for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+		if (argc - 1 != commands[i].argc)
+			continue;
+		int word_index;
+		for (word_index = 0; word_index < commands[i].argc; word_index++)
+			if (strcmp(argv[word_index + 1], commands[i].words[word_index]))
+				break;
+		if (word_index == commands[i].argc)
+			return request(&commands[i]);
 	}
-
-	cmp("ping") {
-		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
-		send(data);
-		if (data.type == CTL_REPLY)
-			printf("%s", data.s);
-		return EXIT_SUCCESS;
-	}
-
-	else cmp("quit") {
-		HkmpDataLayout data = {.name = "quit", .type = CTL_QUIT};
-		send(data);
-		return EXIT_SUCCESS;
-	}
-
-	else cmp("play") {
-		HkmpDataLayout data = {.name = "play", .type = CTL_PLAY};
-		send(data);
-		return EXIT_SUCCESS;
-	}
-
-	else cmp("pause") {
-		HkmpDataLayout data = {.name = "pause", .type = CTL_PAUSE};
-		send(data);
-		return EXIT_SUCCESS;
-	}
-
-	else cmp("toggle") {
-		HkmpDataLayout data = {.name = "toggle", .type = CTL_TOGGLE};
-		send(data);
-		return EXIT_SUCCESS;
-	}
-
-	else cmp("loop") {
-		cmp("song") {
-			HkmpDataLayout data = {.name = "loop-song", .type = CTL_LOOP_SONG};
-			send(data);
-			return EXIT_SUCCESS;
-		}
-
-		else cmp("playlist") {
-			/* XXX */
-		}
-	}
-
-	else cmp("get") {
-		cmp("file") {
-			cmp("name") {
-				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
-				send(data);
-				printf("%s", data.s);
-				return EXIT_SUCCESS;
-			}
-
-			else cmp("path") {
-				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
-				send(data);
-				printf("%s", data.s);
-				return EXIT_SUCCESS;
-			}
-		}
-
-		/* else cmp("volume") { */
-		/* 	HkmpDataLayout data = {.name = "file-path", .type = CTL_GET_VOLUME}; */
-		/* } */
-	}
-
-	else cmp("haxxor") {
-		HkmpDataLayout data = {.name = "haxxor", .type = 1337};
-		send(data);
-		return EXIT_SUCCESS;
-	}
-
-	die_args();
+	return usage(argv[0], EXIT_FAILURE);
 }
 
