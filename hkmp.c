@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,12 +16,52 @@
 "\t[-h || --help]:    Get this help menu\n" \
 "", argv[0]
 
+#ifndef SOCKET_PATH
+#define SOCKET_PATH "/tmp/hkmp.communications.socket"
+#endif
+
 typedef enum {
 	EC_OK,
 	EC_FAIL,
+
 	EC_DECODER_LOAD_FILE,
-	EC_DEVICE_INIT, EC_DEVICE_START,
+
+	EC_DEVICE_INIT,
+	EC_DEVICE_START,
+
+	EC_PIPE_OPEN,
+	EC_PIPE_UNKNOWN_TYPE,
 } ErrorCode;
+
+typedef enum {
+	CTL_PING,
+	CTL_QUIT,
+
+	/* TODO */
+	CTL_FILE_PLAY,
+	CTL_FILE_NEXT,
+	CTL_FILE_PREV,
+	CTL_AUDIO_PLAY_PAUSE,
+	CTL_AUDIO_SKIP,
+} Control;
+
+typedef struct {
+	Control type;
+	char    name[64];
+
+	union {
+		char   c;
+		char*  st;
+
+		float  f;
+		double d;
+
+		short     sh;
+		int       i;
+		long      l;
+		long long ll;
+	};
+} HkmpDataLayout;
 
 static void arguments(int argc, char* argv[]);
 static void cleanup_audio(void);
@@ -28,6 +69,7 @@ static void data_callback(ma_device* device, void* output, const void* input, ma
 static void run(void);
 static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
 static void setup_decoder(void);
+static void setup_pipe(void);
 
 static struct {
 	ma_decoder       decoder;
@@ -37,6 +79,9 @@ static struct {
 
 	char* file;
 } audio = { 0 };
+
+ulepipe conn = { 0 };
+HkmpDataLayout conn_data = { 0 };
 
 static inline void die(ErrorCode ec, const char* fmt, ...) {
 	va_list ap;
@@ -101,8 +146,28 @@ data_callback(ma_device* device, void* output, const void* input, ma_uint32 fram
 static void
 run(void)
 {
-	for (;;)
-		;
+	for (;;) {
+		ulepipe_receive(&conn, &conn_data, sizeof(conn_data));
+
+		switch (conn_data.type) {
+		case CTL_PING:
+			info("Pong !");
+			break;
+		case CTL_QUIT:
+			die(EC_OK, "Quit by controller request");
+			break;
+		case CTL_FILE_PLAY:
+		case CTL_FILE_NEXT:
+		case CTL_FILE_PREV:
+		case CTL_AUDIO_PLAY_PAUSE:
+		case CTL_AUDIO_SKIP:
+		default:
+			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
+			     "\tName: \"%s\"\n" "\tType: \"%d\"",
+			     conn_data.name, conn_data.type);
+			break;
+		}
+	}
 }
 
 static void
@@ -117,7 +182,9 @@ say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list ap)
 	fputc('\n', stream);
 	fflush(stream);
 
+	/* XXX? cleanup */
 	if (stop) {
+		ulepipe_close(&conn);
 		cleanup_audio();
 		exit(ec);
 	}
@@ -152,11 +219,20 @@ setup_decoder(void)
 	info("Set up audio decoder");
 }
 
+static void
+setup_pipe(void)
+{
+	int result = ulepipe_open(&conn, SOCKET_PATH);
+	if (result < 0)
+		die(EC_PIPE_OPEN, "Failed to open socket at \"%s\". Removing the file could help?", SOCKET_PATH);
+}
+
 int
 main(int argc, char* argv[])
 {
 	arguments(argc, argv);
 	setup_decoder();
+	setup_pipe();
 	run();
 
 	return EC_OK;
