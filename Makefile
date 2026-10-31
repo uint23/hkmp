@@ -5,7 +5,7 @@
 CC = cc
 CSTD = c23
 CFLAGS = -std=${CSTD} -Wall -Wextra -O2
-CPPFLAGS =
+CPPFLAGS = -Ivendor
 
 OBJ = build/hkmp.o \
       build/ulepipe.o \
@@ -26,19 +26,19 @@ ${OUT}: ${OBJ}
 ${CTL_OUT}: ${CTL_OBJ}
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${CTL_OBJ}
 
-build/hkmp.o: hkmp.c ulepipe.h miniaudio.h
+build/hkmp.o: hkmp.c vendor/ulepipe.h vendor/miniaudio.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmp.c -o $@
 
-build/hkmpctl.o: hkmpctl.c ulepipe.h
+build/hkmpctl.o: hkmpctl.c vendor/ulepipe.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c hkmpctl.c -o $@
 
-build/ulepipe.o: ulepipe.c ulepipe.h
+build/ulepipe.o: vendor/ulepipe.c vendor/ulepipe.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c ulepipe.c -o $@
 
-build/miniaudio.o: miniaudio.c miniaudio.h
+build/miniaudio.o: vendor/miniaudio.c vendor/miniaudio.h
 	mkdir -p build
 	${CC} ${CPPFLAGS} ${CFLAGS} -c miniaudio.c -o $@
 
