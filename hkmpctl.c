@@ -6,23 +6,23 @@
 #include <string.h>
 
 struct Command {
-	const char *words[3];
-	int argc;
-	Control type;
-	const char *name;
-	int print_reply;
+	const char* words[3];
+	int         argc;
+	Control     type;
+	const char* name;
+	int         print_reply;
 };
 
 static const struct Command commands[] = {
-	{{"ping"}, 1, CTL_PING, "ping", 1},
-	{{"quit"}, 1, CTL_QUIT, "quit", 0},
-	{{"play"}, 1, CTL_PLAY, "play", 0},
-	{{"pause"}, 1, CTL_PAUSE, "pause", 0},
-	{{"toggle"}, 1, CTL_TOGGLE, "toggle", 0},
-	{{"loop", "song"}, 2, CTL_LOOP_SONG, "loop-song", 0},
+	{{"ping"},                1, CTL_PING,          "ping",          1},
+	{{"quit"},                1, CTL_QUIT,          "quit",          0},
+	{{"play"},                1, CTL_PLAY,          "play",          0},
+	{{"pause"},               1, CTL_PAUSE,         "pause",         0},
+	{{"toggle"},              1, CTL_TOGGLE,        "toggle",        0},
+	{{"loop", "song"},        2, CTL_LOOP_SONG,     "loop-song",     0},
 	{{"get", "file", "name"}, 3, CTL_GET_FILE_NAME, "get-file-name", 1},
 	{{"get", "file", "path"}, 3, CTL_GET_FILE_PATH, "get-file-path", 1},
-	{{"haxxor"}, 1, 1337, "haxxor", 0},
+	{{"haxxor"},              1, 1337,              "haxxor",        0},
 };
 
 static int
@@ -53,11 +53,10 @@ static int
 request(const struct Command *command)
 {
 	HkmpDataLayout data = {0};
-	ssize_t n;
 
 	data.type = command->type;
 	snprintf(data.name, sizeof(data.name), "%s", command->name);
-	n = ulepipe_send(SOCKET_PATH, &data, sizeof(data));
+	ssize_t n = ulepipe_send(SOCKET_PATH, &data, sizeof(data));
 	if (n < 0) {
 		perror("hkmpctl: request");
 		return EXIT_FAILURE;
@@ -78,20 +77,19 @@ request(const struct Command *command)
 int
 main(int argc, char* argv[])
 {
-	size_t i;
-	int j;
-
 	if (argc == 1 || (argc == 2 && !strcmp(argv[1], "help")))
 		return usage(argv[0], EXIT_SUCCESS);
 
-	for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+	for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
 		if (argc - 1 != commands[i].argc)
 			continue;
-		for (j = 0; j < commands[i].argc; j++)
-			if (strcmp(argv[j + 1], commands[i].words[j]))
+		int word_index;
+		for (word_index = 0; word_index < commands[i].argc; word_index++)
+			if (strcmp(argv[word_index + 1], commands[i].words[word_index]))
 				break;
-		if (j == commands[i].argc)
+		if (word_index == commands[i].argc)
 			return request(&commands[i]);
 	}
 	return usage(argv[0], EXIT_FAILURE);
 }
+
