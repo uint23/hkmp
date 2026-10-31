@@ -52,6 +52,9 @@ typedef enum {
 	CTL_PLAY,
 	CTL_TOGGLE,
 
+	CTL_LOOP_SONG,
+	CTL_LOOP_PLAYLIST,
+
 	CTL_GET_FILE_NAME,
 	CTL_GET_FILE_PATH,
 
@@ -89,8 +92,9 @@ static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list 
 static void setup(void);
 static void setup_engine(void);
 static void signal_handler(int sig);
-static void song_play(void);
+static void song_loop(void);
 static void song_pause(void);
+static void song_play(void);
 static void song_toggle(void);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
@@ -156,7 +160,7 @@ static void
 send_string(const char* s)
 {
 	size_t len = strlen(s);
-	char err[] = "File path too long";
+	char err[] = "String length longer than PATH_MAX";
 
 	if (len > PATH_MAX) {
 		memcpy(conn_data.s, err, sizeof(err));
@@ -184,10 +188,13 @@ run(void)
 			ulepipe_reply(&conn, &conn_data, sizeof(conn_data));
 			die(EC_OK, "Quit by controller request");
 			break;
-	
+
 		case CTL_PLAY:   song_play(); break;
 		case CTL_PAUSE:  song_pause(); break;
 		case CTL_TOGGLE: song_toggle(); break;
+
+		case CTL_LOOP_PLAYLIST:
+		case CTL_LOOP_SONG: song_loop(); break;
 
 		case CTL_GET_FILE_NAME:  send_string(song.name); break;
 		case CTL_GET_FILE_PATH:; send_string(song.path); break;
@@ -230,10 +237,6 @@ setup(void)
 	ma_sound_init_from_file(&engine, song.path, 0u, NULL, NULL, &song.sound);
 
 	song_play();
-
-	/* TODO looping */
-	ma_sound_set_looping(&song.sound, true);
-	song.looping = true;
 
 	/* pipe */
 	int result = ulepipe_open(&conn, SOCKET_PATH);
@@ -278,10 +281,12 @@ signal_handler(int sig)
 }
 
 static void
-song_play(void)
+song_loop(void)
 {
-	ma_sound_start(&song.sound);
-	song.playing = true;
+	song.looping = !song.looping;
+	song.looping ?
+		ma_sound_set_looping(&song.sound, true) :
+		ma_sound_set_looping(&song.sound, false);
 }
 
 static void
@@ -292,10 +297,19 @@ song_pause(void)
 }
 
 static void
+song_play(void)
+{
+	ma_sound_start(&song.sound);
+	song.playing = true;
+}
+
+static void
 song_toggle(void)
 {
-	song.playing ? ma_sound_stop(&song.sound) : ma_sound_start(&song.sound);
 	song.playing = !song.playing;
+	song.playing ?
+		ma_sound_start(&song.sound) :
+		ma_sound_stop(&song.sound);
 }
 
 int
