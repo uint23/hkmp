@@ -18,7 +18,7 @@ CTL_OUT = hkmpctl
 
 include config.mk
 
-all: ${OUT} # ${CTL_OUT} XXX
+all: ${OUT} ${CTL_OUT}
 
 ${OUT}: ${OBJ}
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
@@ -43,7 +43,7 @@ build/miniaudio.o: miniaudio.c miniaudio.h
 	${CC} ${CPPFLAGS} ${CFLAGS} -c miniaudio.c -o $@
 
 clean:
-	rm -f ${OUT} ${CTL_OUT} ${OBJ}
+	rm -f ${OUT} ${OBJ} ${CTL_OUT} ${CTL_OBJ}
 	rmdir build
 
 compile_flags:
