@@ -36,13 +36,13 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char   c;
-		char*  st;
+		char c;
+		char str[256];
 
 		float  f;
 		double d;
 
-		short     sh;
+		short     s;
 		int       i;
 		long      l;
 		long long ll;
@@ -56,7 +56,7 @@ main(int argc, const char* argv[])
 		printf(USAGE);
 		return EXIT_SUCCESS;
 	}
-
+	
 	cmp(argv[1], "ping") {
 		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
 		send(data);

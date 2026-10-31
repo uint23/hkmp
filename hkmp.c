@@ -27,6 +27,7 @@ typedef enum {
 	EC_FAIL,
 
 	EC_SIGNAL_KILL,
+	EC_SIGNAL_SEGFAULT,
 
 	EC_DECODER_LOAD_FILE,
 
@@ -54,13 +55,13 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char   c;
-		char*  st;
+		char c;
+		char str[256];
 
 		float  f;
 		double d;
 
-		short     sh;
+		short     s;
 		int       i;
 		long      l;
 		long long ll;
@@ -75,6 +76,8 @@ static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list 
 static void setup_decoder(void);
 static void setup_pipe(void);
 static void signal_handler(int sig);
+
+static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
 
 static struct {
 	ma_decoder       decoder;
@@ -210,14 +213,11 @@ setup_decoder(void)
 	audio.device_config.pUserData         = &audio.decoder;
 
 	audio.result = ma_device_init(NULL, &audio.device_config, &audio.device);
-	if (audio.result != MA_SUCCESS) {
+	if (audio.result != MA_SUCCESS)
 		die(EC_DEVICE_INIT, "Failed to open playback device");
-	}
 
-	if (ma_device_start(&audio.device) != MA_SUCCESS) {
-		ma_device_uninit(&audio.device);
+	if (ma_device_start(&audio.device) != MA_SUCCESS)
 		die(EC_DEVICE_START, "Failed to start playback device");
-	}
 
 	info("Set up audio decoder");
 }
@@ -238,7 +238,11 @@ signal_handler(int sig)
 	case SIGHUP:
 	case SIGQUIT:
 	case SIGTERM:
-		die(EC_SIGNAL_KILL, "Killing signal received");
+		die(EC_SIGNAL_KILL, "Killing signal received [%d]", sig);
+		break;
+	case SIGSEGV:
+		die(EC_SIGNAL_SEGFAULT, "SIGSEGV signal received");
+		break;
 	default:
 		break;
 	}
@@ -250,11 +254,9 @@ main(int argc, char* argv[])
 	arguments(argc, argv);
 	setup_decoder();
 	
-	signal(SIGINT, signal_handler);
-	signal(SIGHUP, signal_handler);
-	signal(SIGQUIT, signal_handler);
-	signal(SIGTERM, signal_handler);
-
+	for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); i++)
+		signal(signals[i], signal_handler);
+	
 	setup_pipe();
 	run();
 
