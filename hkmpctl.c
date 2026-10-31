@@ -21,10 +21,9 @@
 "ping: Ping the daemon\n" \
 "quit: Stop the daemon\n" \
 "\n" \
-"get\n" \
-"\tfile\n" \
-"\t\tname: Get the currently playing file name\n" \
-"\t\tpath: Get the currently playing file path\n" \
+"file\n" \
+"\tname: Get the currently playing file name\n" \
+"\tpath: Get the currently playing file path\n" \
 "", argv[0]
 
 #ifndef SOCKET_PATH
@@ -56,9 +55,9 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char        s[PATH_MAX];
-		double      d;
-		int         i;
+		char   s[PATH_MAX];
+		double d;
+		int    i;
 	};
 } HkmpDataLayout;
 
@@ -71,7 +70,7 @@ main(int argc, char* argv[])
 		printf(USAGE);
 		return EXIT_SUCCESS;
 	}
-	
+
 	cmp("ping") {
 		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
 		send(data);
@@ -85,27 +84,25 @@ main(int argc, char* argv[])
 		send(data);
 		return EXIT_SUCCESS;
 	}
-	
-	else cmp("get") {
-		cmp("file") {
-			cmp("name") {
-				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_FILE_NAME};
-				send(data);
-				printf("%s", data.s);
-				return EXIT_SUCCESS;
-			}
 
-			else cmp("path") {
-				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_FILE_PATH};
-				send(data);
-				printf("%s", data.s);
-				return EXIT_SUCCESS;
-			}
+	cmp("file") {
+		cmp("name") {
+			HkmpDataLayout data = {.name = "file-name", .type = CTL_FILE_NAME};
+			send(data);
+			printf("%s", data.s);
+			return EXIT_SUCCESS;
+		}
+
+		else cmp("path") {
+			HkmpDataLayout data = {.name = "file-path", .type = CTL_FILE_PATH};
+			send(data);
+			printf("%s", data.s);
+			return EXIT_SUCCESS;
 		}
 	}
 
 	else cmp("haxxor") {
-		HkmpDataLayout data = {.name = "haxxor_data", .type = 1337};
+		HkmpDataLayout data = {.name = "haxxor", .type = 1337};
 		send(data);
 		return EXIT_SUCCESS;
 	}
