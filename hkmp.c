@@ -69,27 +69,28 @@ typedef struct {
 	};
 } HkmpDataLayout;
 
+typedef struct {
+	ma_sound sound;
+	float    volume;
+	bool     looping;
+	char*    name;
+	char*    path;
+} Song;
+
 static void arguments(int argc, char* argv[]);
-static void cleanup_audio(void);
-static void data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count);
+static void cleanup(void);
 static void run(void);
 static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
-static void setup_decoder(void);
-static void setup_pipe(void);
+static void setup(void);
 static void signal_handler(int sig);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
-static struct {
-	ma_decoder       decoder;
-	ma_device        device;
-	ma_result        result;
-	ma_device_config device_config;
 
-	char* name;
-	char* path;
-} audio = { 0 };
 ulepipe conn = { 0 };
 HkmpDataLayout conn_data = { 0 };
+
+ma_engine engine = { 0 };
+Song song = { 0 };
 
 static inline void die(ErrorCode ec, const char* fmt, ...) {
 	va_list ap;
@@ -127,29 +128,18 @@ arguments(int argc, char* argv[])
 		exit(EC_OK);
 	}
 	else {
-		audio.path = argv[1];
-		audio.name = strrchr(argv[1], '/') + 1;
+		song.path = argv[1];
+		song.name = strrchr(argv[1], '/') + 1;
 		return;
 	}
 }
 
 static void
-cleanup_audio(void)
+cleanup(void)
 {
-	ma_decoder_uninit(&audio.decoder);
-	ma_device_uninit(&audio.device);
-}
-
-static void
-data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count)
-{
-	ma_decoder* _decoder = (ma_decoder*)device->pUserData;
-	if (_decoder == NULL)
-		return;
-
-	ma_decoder_read_pcm_frames(_decoder, output, frame_count, NULL);
-
-	(void)input;
+	ma_sound_uninit(&song.sound);
+	ma_engine_uninit(&engine);
+	ulepipe_close(&conn);
 }
 
 static void
@@ -169,22 +159,22 @@ run(void)
 			break;
 
 		case CTL_FILE_NAME:;
-			size_t len_file_name = strlen(audio.name);
+			size_t len_file_name = strlen(song.name);
 			char err_file_name[] = "File path too long";
 
 			if (len_file_name > PATH_MAX)
 				memcpy(conn_data.s, err_file_name, sizeof(err_file_name));
-			memcpy(conn_data.s, audio.name, len_file_name);
+			memcpy(conn_data.s, song.name, len_file_name);
 			break;
 
 		case CTL_FILE_PATH:;
-			size_t len_file_path = strlen(audio.path);
+			size_t len_file_path = strlen(song.path);
 			char err_file_path[] = "File path too long";
 
 			if (len_file_path > PATH_MAX)
 				memcpy(conn_data.s, err_file_path, sizeof(err_file_name));
 
-			memcpy(conn_data.s, audio.path, len_file_path);
+			memcpy(conn_data.s, song.path, len_file_path);
 			break;
 
 		default:
@@ -213,39 +203,35 @@ say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list ap)
 
 	/* XXX? cleanup */
 	if (stop) {
-		ulepipe_close(&conn);
-		cleanup_audio();
+		cleanup();
 		exit(ec);
 	}
 }
 
 static void
-setup_decoder(void)
+setup(void)
 {
-	audio.result = ma_decoder_init_file(audio.path, NULL, &audio.decoder);
-	if (audio.result != MA_SUCCESS)
-		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", audio.path);
+	ma_decoder decoder = { 0 };
+	ma_engine_config config = { 0 };
 
-	audio.device_config = ma_device_config_init(ma_device_type_playback);
-	audio.device_config.playback.format   = audio.decoder.outputFormat;
-	audio.device_config.playback.channels = audio.decoder.outputChannels;
-	audio.device_config.sampleRate        = audio.decoder.outputSampleRate;
-	audio.device_config.dataCallback      = data_callback;
-	audio.device_config.pUserData         = &audio.decoder;
+	ma_result audio_result = ma_decoder_init_file(song.path, NULL, &decoder);
+	if (audio_result != MA_SUCCESS)
+		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", song.path);
 
-	audio.result = ma_device_init(NULL, &audio.device_config, &audio.device);
-	if (audio.result != MA_SUCCESS)
-		die(EC_DEVICE_INIT, "Failed to open playback device");
+	config = ma_engine_config_init();
+	config.channels = decoder.outputChannels;
+	config.sampleRate = decoder.outputSampleRate;
 
-	if (ma_device_start(&audio.device) != MA_SUCCESS)
-		die(EC_DEVICE_START, "Failed to start playback device");
+	ma_decoder_uninit(&decoder);
 
-	info("Set up audio decoder");
-}
+	if (ma_engine_init(&config, &engine) != MA_SUCCESS)
+		die(EC_DEVICE_INIT, "Failed to initialize audio engine");
 
-static void
-setup_pipe(void)
-{
+	ma_sound_init_from_file(&engine, song.path, 0u, NULL, NULL, &song.sound);
+
+	ma_sound_start(&song.sound);
+	ma_sound_set_looping(&song.sound, true);
+
 	int result = ulepipe_open(&conn, SOCKET_PATH);
 	if (result < 0)
 		die(EC_PIPE_OPEN, "Failed to open socket at \"%s\". Removing the file could help?", SOCKET_PATH);
@@ -273,12 +259,11 @@ int
 main(int argc, char* argv[])
 {
 	arguments(argc, argv);
-	setup_decoder();
-	
+
 	for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); i++)
 		signal(signals[i], signal_handler);
-	
-	setup_pipe();
+
+	setup();
 	run();
 
 	return EC_OK;
