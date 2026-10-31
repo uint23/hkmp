@@ -88,7 +88,8 @@ static struct {
 	ma_result        result;
 	ma_device_config device_config;
 
-	char* file;
+	char* name;
+	char* path;
 } audio = { 0 };
 ulepipe conn = { 0 };
 HkmpDataLayout conn_data = { 0 };
@@ -129,7 +130,8 @@ arguments(int argc, char* argv[])
 		exit(EC_OK);
 	}
 	else {
-		audio.file = argv[1];
+		audio.path = argv[1];
+		audio.name = strrchr(argv[1], '/') + 1;
 		return;
 	}
 }
@@ -169,14 +171,23 @@ run(void)
 			die(EC_OK, "Quit by controller request");
 			break;
 
-		case CTL_GET_FILE_NAME:
+		case CTL_GET_FILE_NAME:;
+			size_t len_get_file_name = strlen(audio.name);
+			char err_get_file_name[] = "File path too long";
+
+			if (len_get_file_name > PATH_MAX)
+				memcpy(conn_data.str, err_get_file_name, sizeof(err_get_file_name));
+			memcpy(conn_data.str, audio.name, len_get_file_name);
+			break;
+
 		case CTL_GET_FILE_PATH:;
-			size_t len = strlen(audio.file);
-			char err[] = "File path too long";
-			if (len > PATH_MAX)
-				memcpy(conn_data.str, audio.file, strlen(audio.file));
-			else
-				memcpy(conn_data.str, err, sizeof(err));
+			size_t len_get_file_path = strlen(audio.path);
+			char err_get_file_path[] = "File path too long";
+
+			if (len_get_file_path > PATH_MAX)
+				memcpy(conn_data.str, err_get_file_path, sizeof(err_get_file_name));
+
+			memcpy(conn_data.str, audio.path, len_get_file_path);
 			break;
 
 		default:
@@ -214,9 +225,9 @@ say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list ap)
 static void
 setup_decoder(void)
 {
-	audio.result = ma_decoder_init_file(audio.file, NULL, &audio.decoder);
+	audio.result = ma_decoder_init_file(audio.path, NULL, &audio.decoder);
 	if (audio.result != MA_SUCCESS)
-		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", audio.file);
+		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", audio.path);
 
 	audio.device_config = ma_device_config_init(ma_device_type_playback);
 	audio.device_config.playback.format   = audio.decoder.outputFormat;
