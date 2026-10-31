@@ -49,8 +49,8 @@ typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
-	CTL_GET_FILE_NAME,
-	CTL_GET_FILE_PATH,
+	CTL_FILE_NAME,
+	CTL_FILE_PATH,
 
 	/* TODO */
 	CTL_PAUSE,
@@ -168,23 +168,23 @@ run(void)
 			die(EC_OK, "Quit by controller request");
 			break;
 
-		case CTL_GET_FILE_NAME:;
-			size_t len_get_file_name = strlen(audio.name);
-			char err_get_file_name[] = "File path too long";
+		case CTL_FILE_NAME:;
+			size_t len_file_name = strlen(audio.name);
+			char err_file_name[] = "File path too long";
 
-			if (len_get_file_name > PATH_MAX)
-				memcpy(conn_data.s, err_get_file_name, sizeof(err_get_file_name));
-			memcpy(conn_data.s, audio.name, len_get_file_name);
+			if (len_file_name > PATH_MAX)
+				memcpy(conn_data.s, err_file_name, sizeof(err_file_name));
+			memcpy(conn_data.s, audio.name, len_file_name);
 			break;
 
-		case CTL_GET_FILE_PATH:;
-			size_t len_get_file_path = strlen(audio.path);
-			char err_get_file_path[] = "File path too long";
+		case CTL_FILE_PATH:;
+			size_t len_file_path = strlen(audio.path);
+			char err_file_path[] = "File path too long";
 
-			if (len_get_file_path > PATH_MAX)
-				memcpy(conn_data.s, err_get_file_path, sizeof(err_get_file_name));
+			if (len_file_path > PATH_MAX)
+				memcpy(conn_data.s, err_file_path, sizeof(err_file_name));
 
-			memcpy(conn_data.s, audio.path, len_get_file_path);
+			memcpy(conn_data.s, audio.path, len_file_path);
 			break;
 
 		default:

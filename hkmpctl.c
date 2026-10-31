@@ -45,9 +45,10 @@ typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
+	CTL_FILE_NAME,
+	CTL_FILE_PATH,
+
 	/* TODO */
-	CTL_GET_FILE_NAME,
-	CTL_GET_FILE_PATH,
 } Control;
 
 typedef struct {
@@ -88,14 +89,14 @@ main(int argc, char* argv[])
 	else cmp("get") {
 		cmp("file") {
 			cmp("name") {
-				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
+				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_FILE_NAME};
 				send(data);
 				printf("%s", data.s);
 				return EXIT_SUCCESS;
 			}
 
 			else cmp("path") {
-				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
+				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_FILE_PATH};
 				send(data);
 				printf("%s", data.s);
 				return EXIT_SUCCESS;
