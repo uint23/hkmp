@@ -1,3 +1,8 @@
+/*
+  TODO
+  Escape this macro hellscape
+*/
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,12 +36,12 @@
 #define send(data) do { \
 if (level != argc) \
 	die_args(); \
-if (ulepipe_send(SOCKET_PATH, &data, sizeof(data)) < 0) \
-	exit(EXIT_FAILURE); \
-exit(EXIT_SUCCESS); \
+ulepipe_send(SOCKET_PATH, &data, sizeof(data)); \
 } while (0)
 
 typedef enum {
+	CTL_REPLY,
+
 	CTL_PING,
 	CTL_QUIT,
 
@@ -76,11 +81,15 @@ main(int argc, char* argv[])
 	cmp("ping") {
 		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
 		send(data);
+		if (data.type == CTL_REPLY)
+			printf("%s", data.str);
+		return EXIT_SUCCESS;
 	}
 
 	else cmp("quit") {
 		HkmpDataLayout data = {.name = "quit", .type = CTL_QUIT};
 		send(data);
+		return EXIT_SUCCESS;
 	}
 	
 	else cmp("get") {
@@ -88,10 +97,14 @@ main(int argc, char* argv[])
 			cmp("name") {
 				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
 				send(data);
+				printf("%s", data.str);
+				return EXIT_SUCCESS;
 			}
 			else cmp("path") {
 				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
 				send(data);
+				printf("%s", data.str);
+				return EXIT_SUCCESS;
 			}
 		}
 	}
@@ -99,6 +112,7 @@ main(int argc, char* argv[])
 	else cmp("haxxor") {
 		HkmpDataLayout data = {.name = "haxxor_data", .type = 1337};
 		send(data);
+		return EXIT_SUCCESS;
 	}
 
 	die_args();
