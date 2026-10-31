@@ -36,8 +36,7 @@ typedef enum {
 
 	EC_DECODER_LOAD_FILE,
 
-	EC_DEVICE_INIT,
-	EC_DEVICE_START,
+	EC_ENGINE_INIT,
 
 	EC_PIPE_OPEN,
 	EC_PIPE_UNKNOWN_TYPE,
@@ -55,6 +54,7 @@ typedef enum {
 	/* TODO */
 	CTL_PAUSE,
 	CTL_PLAY,
+	CTL_TOGGLE,
 	CTL_STOP,
 } Control;
 
@@ -63,18 +63,22 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char        s[PATH_MAX];
-		double      d;
-		int         i;
+		char   s[PATH_MAX];
+		double d;
+		int    i;
 	};
 } HkmpDataLayout;
 
 typedef struct {
 	ma_sound sound;
 	float    volume;
+	bool     playing;
 	bool     looping;
 	char*    name;
 	char*    path;
+
+	struct Song* next;
+	struct Song* prev;
 } Song;
 
 static void arguments(int argc, char* argv[]);
@@ -82,6 +86,7 @@ static void cleanup(void);
 static void run(void);
 static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
 static void setup(void);
+static void setup_engine(void);
 static void signal_handler(int sig);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
@@ -90,6 +95,7 @@ ulepipe conn = { 0 };
 HkmpDataLayout conn_data = { 0 };
 
 ma_engine engine = { 0 };
+ma_decoder decoder = { 0 };
 Song song = { 0 };
 
 static inline void die(ErrorCode ec, const char* fmt, ...) {
@@ -129,7 +135,7 @@ arguments(int argc, char* argv[])
 	}
 	else {
 		song.path = argv[1];
-		song.name = strrchr(argv[1], '/') + 1;
+		song.name = strrchr(argv[1], '/') + 1; /* skip / */
 		return;
 	}
 }
@@ -176,6 +182,11 @@ run(void)
 
 			memcpy(conn_data.s, song.path, len_file_path);
 			break;
+		
+		case CTL_PLAY:
+		case CTL_PAUSE:
+		case CTL_TOGGLE:
+		case CTL_STOP:
 
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
@@ -211,30 +222,33 @@ say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list ap)
 static void
 setup(void)
 {
-	ma_decoder decoder = { 0 };
-	ma_engine_config config = { 0 };
+	setup_engine();
+	ma_sound_init_from_file(&engine, song.path, 0u, NULL, NULL, &song.sound);
 
+	ma_sound_start(&song.sound);
+	ma_sound_set_looping(&song.sound, true);
+
+	/* pipe */
+	int result = ulepipe_open(&conn, SOCKET_PATH);
+	if (result < 0)
+		die(EC_PIPE_OPEN, "Failed to open socket at \"%s\". Removing the file could help?", SOCKET_PATH);
+}
+
+static void
+setup_engine(void)
+{
 	ma_result audio_result = ma_decoder_init_file(song.path, NULL, &decoder);
 	if (audio_result != MA_SUCCESS)
 		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", song.path);
 
-	config = ma_engine_config_init();
+	ma_engine_config config = ma_engine_config_init();
 	config.channels = decoder.outputChannels;
 	config.sampleRate = decoder.outputSampleRate;
 
 	ma_decoder_uninit(&decoder);
 
 	if (ma_engine_init(&config, &engine) != MA_SUCCESS)
-		die(EC_DEVICE_INIT, "Failed to initialize audio engine");
-
-	ma_sound_init_from_file(&engine, song.path, 0u, NULL, NULL, &song.sound);
-
-	ma_sound_start(&song.sound);
-	ma_sound_set_looping(&song.sound, true);
-
-	int result = ulepipe_open(&conn, SOCKET_PATH);
-	if (result < 0)
-		die(EC_PIPE_OPEN, "Failed to open socket at \"%s\". Removing the file could help?", SOCKET_PATH);
+		die(EC_ENGINE_INIT, "Failed to initialize audio engine");
 }
 
 static void
