@@ -11,29 +11,38 @@
 
 #define USAGE \
 "%s usage:\n" \
-"\thelp: Get this helpful menu\n" \
+"help: Get this helpful menu\n" \
 "\n" \
-"\tquit: Stop the daemon\n" \
-"\tping: Ping the daemon\n" \
+"ping: Ping the daemon\n" \
+"quit: Stop the daemon\n" \
+"\n" \
+"get\n" \
+"\tfile\n" \
+"\t\tname: Get the currently playing file name\n" \
+"\t\tpath: Get the currently playing file path\n" \
 "", argv[0]
 
 #ifndef SOCKET_PATH
 #define SOCKET_PATH "/tmp/hkmp.communications.socket"
 #endif
 
-#define cmp(a, b) if (!(strcmp(a, b)))
-#define send(data) ulepipe_send(SOCKET_PATH, &data, sizeof(data))
+#define die_args() do { fprintf(stderr, USAGE); exit(EXIT_FAILURE); } while(0)
+#define cmp(a) if (level < argc && !strcmp(argv[level], a) && ++level)
+#define send(data) do { \
+if (level != argc) \
+	die_args(); \
+if (ulepipe_send(SOCKET_PATH, &data, sizeof(data)) < 0) \
+	exit(EXIT_FAILURE); \
+exit(EXIT_SUCCESS); \
+} while (0)
 
 typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
 	/* TODO */
-	CTL_FILE_PLAY,
-	CTL_FILE_NEXT,
-	CTL_FILE_PREV,
-	CTL_AUDIO_PLAY_PAUSE,
-	CTL_AUDIO_SKIP,
+	CTL_GET_FILE_NAME,
+	CTL_GET_FILE_PATH,
 } Control;
 
 typedef struct {
@@ -57,26 +66,41 @@ typedef struct {
 int
 main(int argc, char* argv[])
 {
-	if (argc < 2) {
+	int level = 1;
+
+	if (argc <= level) {
 		printf(USAGE);
 		return EXIT_SUCCESS;
 	}
 	
-	cmp(argv[1], "ping") {
+	cmp("ping") {
 		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
 		send(data);
 	}
 
-	cmp(argv[1], "quit") {
+	else cmp("quit") {
 		HkmpDataLayout data = {.name = "quit", .type = CTL_QUIT};
 		send(data);
 	}
+	
+	else cmp("get") {
+		cmp("file") {
+			cmp("name") {
+				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
+				send(data);
+			}
+			else cmp("path") {
+				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
+				send(data);
+			}
+		}
+	}
 
-	cmp(argv[1], "haxxor") {
+	else cmp("haxxor") {
 		HkmpDataLayout data = {.name = "haxxor_data", .type = 1337};
 		send(data);
 	}
 
-	return EXIT_SUCCESS;
+	die_args();
 }
 
