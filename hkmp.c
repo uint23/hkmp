@@ -1,8 +1,10 @@
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/signal.h>
 
 #include "miniaudio.h"
 #include "ulepipe.h"
@@ -23,6 +25,8 @@
 typedef enum {
 	EC_OK,
 	EC_FAIL,
+
+	EC_SIGNAL_KILL,
 
 	EC_DECODER_LOAD_FILE,
 
@@ -70,6 +74,7 @@ static void run(void);
 static void say(FILE* stream, bool stop, ErrorCode ec, const char* fmt, va_list va);
 static void setup_decoder(void);
 static void setup_pipe(void);
+static void signal_handler(int sig);
 
 static struct {
 	ma_decoder       decoder;
@@ -227,11 +232,31 @@ setup_pipe(void)
 		die(EC_PIPE_OPEN, "Failed to open socket at \"%s\". Removing the file could help?", SOCKET_PATH);
 }
 
+static void
+signal_handler(int sig)
+{
+	switch (sig) {
+	case SIGINT:
+	case SIGHUP:
+	case SIGQUIT:
+	case SIGTERM:
+		die(EC_SIGNAL_KILL, "Killing signal received");
+	default:
+		break;
+	}
+}
+
 int
 main(int argc, char* argv[])
 {
 	arguments(argc, argv);
 	setup_decoder();
+	
+	signal(SIGINT, signal_handler);
+	signal(SIGHUP, signal_handler);
+	signal(SIGQUIT, signal_handler);
+	signal(SIGTERM, signal_handler);
+
 	setup_pipe();
 	run();
 
