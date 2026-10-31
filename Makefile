@@ -36,11 +36,11 @@ build/hkmpctl.o: hkmpctl.c vendor/ulepipe.h
 
 build/ulepipe.o: vendor/ulepipe.c vendor/ulepipe.h
 	mkdir -p build
-	${CC} ${CPPFLAGS} ${CFLAGS} -c ulepipe.c -o $@
+	${CC} ${CPPFLAGS} ${CFLAGS} -c vendor/ulepipe.c -o $@
 
 build/miniaudio.o: vendor/miniaudio.c vendor/miniaudio.h
 	mkdir -p build
-	${CC} ${CPPFLAGS} ${CFLAGS} -c miniaudio.c -o $@
+	${CC} ${CPPFLAGS} ${CFLAGS} -c vendor/miniaudio.c -o $@
 
 clean:
 	rm -f ${OUT} ${OBJ} ${CTL_OUT} ${CTL_OBJ}

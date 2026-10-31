@@ -211,13 +211,11 @@ setup_decoder(void)
 
 	audio.result = ma_device_init(NULL, &audio.device_config, &audio.device);
 	if (audio.result != MA_SUCCESS) {
-		ma_decoder_uninit(&audio.decoder);
 		die(EC_DEVICE_INIT, "Failed to open playback device");
 	}
 
 	if (ma_device_start(&audio.device) != MA_SUCCESS) {
 		ma_device_uninit(&audio.device);
-		ma_decoder_uninit(&audio.decoder);
 		die(EC_DEVICE_START, "Failed to start playback device");
 	}
 
