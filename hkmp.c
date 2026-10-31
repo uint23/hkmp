@@ -170,8 +170,13 @@ run(void)
 			break;
 
 		case CTL_GET_FILE_NAME:
-		case CTL_GET_FILE_PATH:
-			memcpy(conn_data.str, audio.file, strlen(audio.file));
+		case CTL_GET_FILE_PATH:;
+			size_t len = strlen(audio.file);
+			char err[] = "File path too long";
+			if (len > PATH_MAX)
+				memcpy(conn_data.str, audio.file, strlen(audio.file));
+			else
+				memcpy(conn_data.str, err, sizeof(err));
 			break;
 
 		default:
