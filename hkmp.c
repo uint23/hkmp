@@ -49,9 +49,13 @@ typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
-	/* TODO */
 	CTL_GET_FILE_NAME,
 	CTL_GET_FILE_PATH,
+
+	/* TODO */
+	CTL_PAUSE,
+	CTL_PLAY,
+	CTL_STOP,
 } Control;
 
 typedef struct {
@@ -59,16 +63,9 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char c;
-		char str[PATH_MAX];
-
-		float  f;
-		double d;
-
-		short     s;
-		int       i;
-		long      l;
-		long long ll;
+		char        s[PATH_MAX];
+		double      d;
+		int         i;
 	};
 } HkmpDataLayout;
 
@@ -163,7 +160,7 @@ run(void)
 
 		switch (conn_data.type) {
 		case CTL_PING:
-			memcpy(conn_data.str, "Rsp Pong !", sizeof("Rsp Pong !"));
+			memcpy(conn_data.s, "Rsp Pong !", sizeof("Rsp Pong !"));
 			info("Pong !");
 			break;
 
@@ -176,8 +173,8 @@ run(void)
 			char err_get_file_name[] = "File path too long";
 
 			if (len_get_file_name > PATH_MAX)
-				memcpy(conn_data.str, err_get_file_name, sizeof(err_get_file_name));
-			memcpy(conn_data.str, audio.name, len_get_file_name);
+				memcpy(conn_data.s, err_get_file_name, sizeof(err_get_file_name));
+			memcpy(conn_data.s, audio.name, len_get_file_name);
 			break;
 
 		case CTL_GET_FILE_PATH:;
@@ -185,9 +182,9 @@ run(void)
 			char err_get_file_path[] = "File path too long";
 
 			if (len_get_file_path > PATH_MAX)
-				memcpy(conn_data.str, err_get_file_path, sizeof(err_get_file_name));
+				memcpy(conn_data.s, err_get_file_path, sizeof(err_get_file_name));
 
-			memcpy(conn_data.str, audio.path, len_get_file_path);
+			memcpy(conn_data.s, audio.path, len_get_file_path);
 			break;
 
 		default:

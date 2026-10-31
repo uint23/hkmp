@@ -55,16 +55,9 @@ typedef struct {
 	char    name[64];
 
 	union {
-		char c;
-		char str[PATH_MAX];
-
-		float  f;
-		double d;
-
-		short     s;
-		int       i;
-		long      l;
-		long long ll;
+		char        s[PATH_MAX];
+		double      d;
+		int         i;
 	};
 } HkmpDataLayout;
 
@@ -82,7 +75,7 @@ main(int argc, char* argv[])
 		HkmpDataLayout data = {.name = "ping", .type = CTL_PING};
 		send(data);
 		if (data.type == CTL_REPLY)
-			printf("%s", data.str);
+			printf("%s", data.s);
 		return EXIT_SUCCESS;
 	}
 
@@ -97,13 +90,14 @@ main(int argc, char* argv[])
 			cmp("name") {
 				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
 				send(data);
-				printf("%s", data.str);
+				printf("%s", data.s);
 				return EXIT_SUCCESS;
 			}
+
 			else cmp("path") {
 				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
 				send(data);
-				printf("%s", data.str);
+				printf("%s", data.s);
 				return EXIT_SUCCESS;
 			}
 		}
