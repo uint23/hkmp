@@ -44,6 +44,8 @@ typedef enum {
 } ErrorCode;
 
 typedef enum {
+	CTL_REPLY,
+
 	CTL_PING,
 	CTL_QUIT,
 
@@ -159,19 +161,28 @@ run(void)
 
 		switch (conn_data.type) {
 		case CTL_PING:
+			memcpy(conn_data.str, "Rsp Pong !", sizeof("Rsp Pong !"));
 			info("Pong !");
 			break;
+
 		case CTL_QUIT:
 			die(EC_OK, "Quit by controller request");
 			break;
+
 		case CTL_GET_FILE_NAME:
 		case CTL_GET_FILE_PATH:
+			memcpy(conn_data.str, audio.file, strlen(audio.file));
+			break;
+
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
 			     "\tName: \"%s\"\n" "\tType: \"%d\"",
 			     conn_data.name, conn_data.type);
 			break;
 		}
+
+		conn_data.type = CTL_REPLY;
+		ulepipe_reply(&conn, &conn_data, sizeof(conn_data));
 	}
 }
 
