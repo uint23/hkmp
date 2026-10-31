@@ -16,6 +16,7 @@
 #ifndef VERSION
 #define VERSION "  ?  " __DATE__
 #endif
+
 #define USAGE \
 "%s usage:\n" \
 "\t[-v || --version]: Get the program version\n" \
@@ -47,11 +48,8 @@ typedef enum {
 	CTL_QUIT,
 
 	/* TODO */
-	CTL_FILE_PLAY,
-	CTL_FILE_NEXT,
-	CTL_FILE_PREV,
-	CTL_AUDIO_PLAY_PAUSE,
-	CTL_AUDIO_SKIP,
+	CTL_GET_FILE_NAME,
+	CTL_GET_FILE_PATH,
 } Control;
 
 typedef struct {
@@ -82,7 +80,6 @@ static void setup_pipe(void);
 static void signal_handler(int sig);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
-
 static struct {
 	ma_decoder       decoder;
 	ma_device        device;
@@ -91,7 +88,6 @@ static struct {
 
 	char* file;
 } audio = { 0 };
-
 ulepipe conn = { 0 };
 HkmpDataLayout conn_data = { 0 };
 
@@ -168,11 +164,8 @@ run(void)
 		case CTL_QUIT:
 			die(EC_OK, "Quit by controller request");
 			break;
-		case CTL_FILE_PLAY:
-		case CTL_FILE_NEXT:
-		case CTL_FILE_PREV:
-		case CTL_AUDIO_PLAY_PAUSE:
-		case CTL_AUDIO_SKIP:
+		case CTL_GET_FILE_NAME:
+		case CTL_GET_FILE_PATH:
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
 			     "\tName: \"%s\"\n" "\tType: \"%d\"",
