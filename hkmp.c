@@ -48,14 +48,14 @@ typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
-	CTL_FILE_NAME,
-	CTL_FILE_PATH,
-
-	/* TODO */
 	CTL_PAUSE,
 	CTL_PLAY,
 	CTL_TOGGLE,
-	CTL_STOP,
+
+	CTL_GET_FILE_NAME,
+	CTL_GET_FILE_PATH,
+
+	/* TODO */
 } Control;
 
 typedef struct {
@@ -161,32 +161,45 @@ run(void)
 			break;
 
 		case CTL_QUIT:
+			/* stop ctl from hanging */
+			conn_data.type = CTL_REPLY;
+			ulepipe_reply(&conn, &conn_data, sizeof(conn_data));
 			die(EC_OK, "Quit by controller request");
 			break;
-
-		case CTL_FILE_NAME:;
-			size_t len_file_name = strlen(song.name);
-			char err_file_name[] = "File path too long";
-
-			if (len_file_name > PATH_MAX)
-				memcpy(conn_data.s, err_file_name, sizeof(err_file_name));
-			memcpy(conn_data.s, song.name, len_file_name);
-			break;
-
-		case CTL_FILE_PATH:;
-			size_t len_file_path = strlen(song.path);
-			char err_file_path[] = "File path too long";
-
-			if (len_file_path > PATH_MAX)
-				memcpy(conn_data.s, err_file_path, sizeof(err_file_name));
-
-			memcpy(conn_data.s, song.path, len_file_path);
-			break;
-		
+	
 		case CTL_PLAY:
+			ma_sound_start(&song.sound);
+			song.playing = true;
+			break;
+
 		case CTL_PAUSE:
+			ma_sound_stop(&song.sound);
+			song.playing = false;
+			break;
+
 		case CTL_TOGGLE:
-		case CTL_STOP:
+			song.playing ? ma_sound_stop(&song.sound) : ma_sound_start(&song.sound);
+			song.playing = !song.playing;
+			break;
+
+		case CTL_GET_FILE_NAME:;
+			size_t len_get_file_name = strlen(song.name);
+			char err_get_file_name[] = "File path too long";
+
+			if (len_get_file_name > PATH_MAX)
+				memcpy(conn_data.s, err_get_file_name, sizeof(err_get_file_name));
+			memcpy(conn_data.s, song.name, len_get_file_name);
+			break;
+
+		case CTL_GET_FILE_PATH:;
+			size_t len_get_file_path = strlen(song.path);
+			char err_get_file_path[] = "File path too long";
+
+			if (len_get_file_path > PATH_MAX)
+				memcpy(conn_data.s, err_get_file_path, sizeof(err_get_file_path));
+
+			memcpy(conn_data.s, song.path, len_get_file_path);
+			break;
 
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
@@ -227,6 +240,8 @@ setup(void)
 
 	ma_sound_start(&song.sound);
 	ma_sound_set_looping(&song.sound, true);
+	song.playing = true;
+	song.looping = true;
 
 	/* pipe */
 	int result = ulepipe_open(&conn, SOCKET_PATH);
@@ -237,6 +252,7 @@ setup(void)
 static void
 setup_engine(void)
 {
+	ma_engine_uninit(&engine);
 	ma_result audio_result = ma_decoder_init_file(song.path, NULL, &decoder);
 	if (audio_result != MA_SUCCESS)
 		die(EC_DECODER_LOAD_FILE, "Could not load file \"%s\"", song.path);

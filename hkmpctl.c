@@ -16,14 +16,18 @@
 
 #define USAGE \
 "%s usage:\n" \
-"help: Get this helpful menu\n" \
 "\n" \
-"ping: Ping the daemon\n" \
-"quit: Stop the daemon\n" \
+"ping:   Ping the daemon\n" \
+"help:   Get this helpful menu\n" \
+"quit:   Stop the daemon\n" \
+"play:   Play the current song\n" \
+"pause:  Pause the current song\n" \
+"toggle: Play/Pause the current song\n" \
 "\n" \
-"file\n" \
-"\tname: Get the currently playing file name\n" \
-"\tpath: Get the currently playing file path\n" \
+"get:\n" \
+"\tfile:\n" \
+"\t\tname: Get the currently playing file name\n" \
+"\t\tpath: Get the currently playing file path\n" \
 "", argv[0]
 
 #ifndef SOCKET_PATH
@@ -44,8 +48,12 @@ typedef enum {
 	CTL_PING,
 	CTL_QUIT,
 
-	CTL_FILE_NAME,
-	CTL_FILE_PATH,
+	CTL_PAUSE,
+	CTL_PLAY,
+	CTL_TOGGLE,
+
+	CTL_GET_FILE_NAME,
+	CTL_GET_FILE_PATH,
 
 	/* TODO */
 } Control;
@@ -85,20 +93,44 @@ main(int argc, char* argv[])
 		return EXIT_SUCCESS;
 	}
 
-	cmp("file") {
-		cmp("name") {
-			HkmpDataLayout data = {.name = "file-name", .type = CTL_FILE_NAME};
-			send(data);
-			printf("%s", data.s);
-			return EXIT_SUCCESS;
-		}
+	else cmp("play") {
+		HkmpDataLayout data = {.name = "play", .type = CTL_PLAY};
+		send(data);
+		return EXIT_SUCCESS;
+	}
 
-		else cmp("path") {
-			HkmpDataLayout data = {.name = "file-path", .type = CTL_FILE_PATH};
-			send(data);
-			printf("%s", data.s);
-			return EXIT_SUCCESS;
+	else cmp("pause") {
+		HkmpDataLayout data = {.name = "pause", .type = CTL_PAUSE};
+		send(data);
+		return EXIT_SUCCESS;
+	}
+
+	else cmp("toggle") {
+		HkmpDataLayout data = {.name = "toggle", .type = CTL_TOGGLE};
+		send(data);
+		return EXIT_SUCCESS;
+	}
+
+	else cmp("get") {
+		cmp("file") {
+			cmp("name") {
+				HkmpDataLayout data = {.name = "get-file-name", .type = CTL_GET_FILE_NAME};
+				send(data);
+				printf("%s", data.s);
+				return EXIT_SUCCESS;
+			}
+
+			else cmp("path") {
+				HkmpDataLayout data = {.name = "get-file-path", .type = CTL_GET_FILE_PATH};
+				send(data);
+				printf("%s", data.s);
+				return EXIT_SUCCESS;
+			}
 		}
+	
+		/* else cmp("volume") { */
+		/* 	HkmpDataLayout data = {.name = "file-path", .type = CTL_GET_VOLUME}; */
+		/* } */
 	}
 
 	else cmp("haxxor") {
