@@ -159,9 +159,9 @@ run(void)
 		ulepipe_receive(&conn, &conn_data, sizeof(conn_data));
 
 		switch (conn_data.type) {
-		case CTL_PING:
-			memcpy(conn_data.s, "Rsp Pong !", sizeof("Rsp Pong !"));
-			info("Pong !");
+		case CTL_PING:;
+			char msg_ping[] = "Pong !";
+			memcpy(conn_data.s, msg_ping, sizeof(msg_ping));
 			break;
 
 		case CTL_QUIT:
