@@ -14,12 +14,6 @@
 #define VERSION "  ?  " __DATE__
 #endif
 
-#define USAGE \
-"%s usage:\n" \
-"\t[-v || --version]: Get the program version\n" \
-"\t[-h || --help]:    Get this help menu\n" \
-"", argv[0]
-
 typedef enum {
 	EC_OK,
 	EC_FAIL,
@@ -59,6 +53,7 @@ static void song_loop(void);
 static void song_pause(void);
 static void song_play(void);
 static void song_toggle(void);
+static void usage(const char* name);
 
 static int signals[] = { SIGINT, SIGHUP, SIGQUIT, SIGTERM, SIGSEGV };
 
@@ -101,7 +96,7 @@ arguments(int argc, char* argv[])
 		exit(EC_OK);
 	}
 	else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-		info(USAGE);
+		usage(argv[0]);
 		exit(EC_OK);
 	}
 	else {
@@ -273,6 +268,16 @@ song_toggle(void)
 	song.playing ?
 		ma_sound_start(&song.sound) :
 		ma_sound_stop(&song.sound);
+}
+
+static void
+usage(const char* name)
+{
+	printf(
+	        "%s usage:\n"
+	        "  [-v || --version]: Get the program version\n"
+	        "  [-h || --help]:    Get this help menu\n"
+	        , name);
 }
 
 int
