@@ -3,6 +3,7 @@ hkmpctl
 *.o
 *.swp
 *.swo
+*.core
 compile_flags.txt
 config.mk
 
