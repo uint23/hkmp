@@ -39,7 +39,6 @@ typedef struct {
 	union {
 		char   s[PATH_MAX];
 		double d;
-		int    i;
 	};
 } HkmpDataLayout;
 
