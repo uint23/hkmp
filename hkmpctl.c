@@ -6,15 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct Command {
+typedef struct {
 	const char* words[3];
 	int         argc;
 	Control     type;
 	const char* name;
 	bool        print_reply;
-};
+} Command;
 
-static const struct Command commands[] = {
+static const Command commands[] = {
 	/* word                      argc   type                  name                print */
 	{{"ping"},                   1,     CTL_PING,             "ping",             true},
 	{{"quit"},                   1,     CTL_QUIT,             "quit",             false},
@@ -59,7 +59,7 @@ usage(const char *prog, int status)
 }
 
 static int
-request(const struct Command *command)
+request(const Command* command)
 {
 	HkmpDataLayout data = {0};
 
