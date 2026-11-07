@@ -132,7 +132,14 @@ static void
 run(void)
 {
 	for (;;) {
-		ulepipe_receive(&conn, &conn_data, sizeof(conn_data));
+		ssize_t n = ulepipe_receive(&conn, &conn_data, sizeof(conn_data));
+		if (n < 0) {
+			perror("hkmp: receive");
+			continue;
+		}
+
+		if (n != sizeof(conn_data))
+			continue;
 
 		switch (conn_data.type) {
 		case CTL_PING:;
@@ -154,8 +161,14 @@ run(void)
 		case CTL_LOOP_PLAYLIST:
 		case CTL_LOOP_SONG: song_loop(); break;
 
-		case CTL_GET_FILE_NAME:  send_string(song.name); break;
-		case CTL_GET_FILE_PATH:; send_string(song.path); break;
+		case CTL_GET_FILE_NAME: send_string(song.name); break;
+		case CTL_GET_FILE_PATH: send_string(song.path); break;
+
+		case CTL_GET_VOLUME:;
+			char volbuf[8] = { 0 };
+			snprintf(volbuf, sizeof(volbuf), "%.2f", ma_sound_get_volume(&song.sound));
+			send_string(volbuf);
+			break;
 
 		default:
 			warn(EC_PIPE_UNKNOWN_TYPE, "Unknown control\n"
@@ -165,7 +178,8 @@ run(void)
 		}
 
 		conn_data.type = CTL_REPLY;
-		ulepipe_reply(&conn, &conn_data, sizeof(conn_data));
+		if (ulepipe_reply(&conn, &conn_data, sizeof(conn_data)) < 0)
+			perror("hkmp: reply");
 	}
 }
 

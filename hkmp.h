@@ -26,8 +26,10 @@ typedef enum {
 
 	CTL_GET_FILE_NAME,
 	CTL_GET_FILE_PATH,
+	CTL_GET_VOLUME,
 
 	/* TODO */
+	CTL_SET_VOLUME,
 } Control;
 
 typedef struct {
