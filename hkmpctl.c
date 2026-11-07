@@ -1,6 +1,7 @@
 #include "hkmp.h"
 #include "ulepipe.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,19 +11,22 @@ struct Command {
 	int         argc;
 	Control     type;
 	const char* name;
-	int         print_reply;
+	bool        print_reply;
 };
 
 static const struct Command commands[] = {
-	{{"ping"},                1, CTL_PING,          "ping",          1},
-	{{"quit"},                1, CTL_QUIT,          "quit",          0},
-	{{"play"},                1, CTL_PLAY,          "play",          0},
-	{{"pause"},               1, CTL_PAUSE,         "pause",         0},
-	{{"toggle"},              1, CTL_TOGGLE,        "toggle",        0},
-	{{"loop", "song"},        2, CTL_LOOP_SONG,     "loop-song",     0},
-	{{"get", "file", "name"}, 3, CTL_GET_FILE_NAME, "get-file-name", 1},
-	{{"get", "file", "path"}, 3, CTL_GET_FILE_PATH, "get-file-path", 1},
-	{{"haxxor"},              1, 1337,              "haxxor",        0},
+	/* word                      argc   type                  name                print */
+	{{"ping"},                   1,     CTL_PING,             "ping",             true},
+	{{"quit"},                   1,     CTL_QUIT,             "quit",             false},
+	{{"play"},                   1,     CTL_PLAY,             "play",             false},
+	{{"pause"},                  1,     CTL_PAUSE,            "pause",            false},
+	{{"toggle"},                 1,     CTL_TOGGLE,           "toggle",           false},
+	{{"loop", "song"},           2,     CTL_LOOP_SONG,        "loop-song",        false},
+	{{"get", "file", "name"},    3,     CTL_GET_FILE_NAME,    "get-file-name",    true},
+	{{"get", "file", "path"},    3,     CTL_GET_FILE_PATH,    "get-file-path",    true},
+	{{"get", "volume"},          2,     CTL_GET_VOLUME,       "get-volume",       true},
+	{{"set", "volume"},          2,     CTL_SET_VOLUME,       "set-volume",       true},
+	{{"haxxor"},                 1,     1337,                 "haxxor",           false},
 };
 
 static int
