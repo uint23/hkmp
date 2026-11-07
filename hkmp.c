@@ -165,9 +165,13 @@ run(void)
 		case CTL_GET_FILE_PATH: send_string(song.path); break;
 
 		case CTL_GET_VOLUME:;
-			char volbuf[8] = { 0 };
-			snprintf(volbuf, sizeof(volbuf), "%.2f", ma_sound_get_volume(&song.sound));
-			send_string(volbuf);
+			char get_volume_buf[8] = { 0 };
+			snprintf(get_volume_buf, sizeof(get_volume_buf), "%.2f", ma_sound_get_volume(&song.sound));
+			send_string(get_volume_buf);
+			break;
+
+		case CTL_SET_VOLUME:;
+			ma_sound_set_volume(&song.sound, conn_data.d);
 			break;
 
 		default:
