@@ -118,9 +118,9 @@ static void
 send_string(const char* s)
 {
 	size_t len = strlen(s);
-	char err[] = "String length longer than PATH_MAX";
 
-	if (len > PATH_MAX) {
+	if (len > sizeof(conn_data.s)) {
+		char err[] = "String length longer than data.s";
 		memcpy(conn_data.s, err, sizeof(err));
 		return;
 	}
