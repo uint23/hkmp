@@ -29,11 +29,16 @@ static const struct Command commands[] = {
 	{{"haxxor"},                 1,     1337,                 "haxxor",           false},
 };
 
+static bool pretty = false;
+
 static int
 usage(const char *prog, int status)
 {
 	fprintf(status == EXIT_SUCCESS ? stdout : stderr,
 	        "%s usage:\n"
+	        "\n"
+	        "pretty: Format output for terminal usage.\n"
+	        "        Don't use this if you're not looking at the output\n"
 	        "\n"
 	        "ping:   Ping the daemon\n"
 	        "help:   Get this helpful menu\n"
@@ -60,21 +65,26 @@ request(const struct Command *command)
 
 	data.type = command->type;
 	snprintf(data.name, sizeof(data.name), "%s", command->name);
+
 	ssize_t n = ulepipe_send(SOCKET_PATH, &data, sizeof(data));
 	if (n < 0) {
 		perror("hkmpctl: request");
 		return EXIT_FAILURE;
 	}
+
 	if ((size_t)n != sizeof(data) || data.type != CTL_REPLY ||
 	    (command->print_reply && !memchr(data.s, '\0', sizeof(data.s)))) {
 		fputs("hkmpctl: invalid reply\n", stderr);
 		return EXIT_FAILURE;
 	}
-	if (command->print_reply &&
-	    (fputs(data.s, stdout) == EOF || fflush(stdout) == EOF)) {
-		perror("hkmpctl: stdout");
-		return EXIT_FAILURE;
+
+	if (command->print_reply) {
+		fputs(data.s, stdout);
+		fflush(stdout);
+		if (pretty)
+			fputs("\n", stdout);
 	}
+
 	return EXIT_SUCCESS;
 }
 
@@ -84,16 +94,25 @@ main(int argc, char* argv[])
 	if (argc == 1 || (argc == 2 && !strcmp(argv[1], "help")))
 		return usage(argv[0], EXIT_SUCCESS);
 
+	int offset = 1;
+	
+	if (!strcmp(argv[1], "pretty")) {
+		offset++;
+		pretty = true;
+	}
+
 	for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-		if (argc - 1 != commands[i].argc)
+		if (argc - offset != commands[i].argc)
 			continue;
+
 		int word_index;
 		for (word_index = 0; word_index < commands[i].argc; word_index++)
-			if (strcmp(argv[word_index + 1], commands[i].words[word_index]))
+			if (strcmp(argv[word_index + offset], commands[i].words[word_index]))
 				break;
 		if (word_index == commands[i].argc)
 			return request(&commands[i]);
 	}
+
 	return usage(argv[0], EXIT_FAILURE);
 }
 
